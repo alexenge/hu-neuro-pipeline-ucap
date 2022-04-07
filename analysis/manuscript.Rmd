@@ -1,0 +1,117 @@
+---
+title             : UCAP example analysis
+shorttitle        : UCAP example analysis
+author: 
+  - name          : Alexander Enge
+    affiliation   : 1,2
+    corresponding : yes
+    address       : Rudower Chaussee 18, 12489 Berlin, Germany"
+    email         : alexander.enge@hu-berlin.de
+affiliation:
+  - id            : 1
+    institution   : Humboldt-Universität zu Berlin
+  - id            : 2
+    institution   : Max Planck Institute for Human Cognitive and Brain Sciences
+authornote:       : \addORCIDlink{Alexander Enge}{0000-0003-0100-2297}
+documentclass     : apa7
+classoption       : doc,donotrepeattitle
+fontsize          : 10pt
+output:
+  papaja::apa6_pdf:
+    latex_engine: xelatex
+---
+
+```{r}
+# Load R packages
+library(here)
+library(reticulate)
+library(tidyverse)
+library(magrittr)
+
+# (Re-)run steps that take a long time?
+run_eeg_processing <- FALSE
+
+# Directory paths
+report_dir <- here(output_dir, "html_reports")
+
+# File paths
+config_file <- here(output_dir, "config.json")
+trials_file <- here(output_dir, "trials.csv")
+evokeds_file <- here(output_dir, "ave.csv")
+channel_locations_file <- here(output_dir, "channel_locations.csv")
+cluster_file <- here(output_dir, "clusters.csv")
+```
+
+# Method
+
+## EEG data processing
+
+```{r eeg_processing, eval=run_eeg_processing, include=FALSE}
+# Import the pipeline in Python
+pipeline <- import("pipeline")
+
+# Run the pipeline
+res <- pipeline$group_pipeline(
+    vhdr_files = here("data/raw"),
+    log_files = here("data/log"),
+    output_dir = here("output"),
+    report_dir = here("output/html_reports"),
+    bad_channels = NULL,
+    ocular_correction = here("data/cali"),
+    highpass_freq = NULL,
+    lowpass_freq = 40.,
+    epochs_tmin = -0.2,
+    epochs_tmax = 0.8,
+    triggers = c(201:208, 211:218),
+    components = list(
+        "name" = c("N2", "P3b"),
+        "tmin" = c(0.25, 0.4),
+        "tmax" = c(0.35, 0.55),
+        "roi" = list(
+            c("FC1", "FC2", "C1", "C2", "Cz"),
+            c("CP3", "CP1", "CPz", "CP2", "CP4", "P3", "Pz", "P4", "PO3", "POz", "PO4")
+        )
+    ),
+    average_by = c("n_b", "DeviantPosRL", "n_b/DeviantPosRL"),
+    perm_contrasts = list(
+        c("blurr", "normal"),
+        c("blurr/re", "blurr/li"),
+        c("normal/re", "normal/li")
+    ),
+    n_jobs = 8
+)
+```
+
+```{r descriptives, include=FALSE}
+# Read config file written by the pipeline
+config <- jsonlite::fromJSON(config_file)
+
+# # Check numbers of interpolated channels per participant
+# bad_channels <- lengths(config[["auto_bad_channels"]])
+# summary(bad_channels)
+
+# Check numbers of rejected epochs per participant
+rejected_epochs <- lengths(config[["rejected_epochs"]])
+summary(rejected_epochs)
+
+# As percent
+total_epochs <- 1920
+rejected_epochs_perc <- rejected_epochs / total_epochs
+summary(rejected_epochs_perc)
+```
+
+# Appendix B: R package versions
+
+```{r, r_session_info}
+# R version and package info
+sessionInfo()
+```
+
+# Appendix C: Python package versions
+
+```{python, py_session_info}
+# Python version and package info
+import pipeline
+import session_info
+session_info.show(dependencies=True)
+```
