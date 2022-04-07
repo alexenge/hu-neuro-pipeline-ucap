@@ -24,22 +24,10 @@ output:
 ```{r}
 # Load R packages
 library(here)
-library(reticulate)
-library(tidyverse)
-library(magrittr)
+library(dplyr)
 
 # (Re-)run steps that take a long time?
 run_eeg_processing <- FALSE
-
-# Directory paths
-report_dir <- here(output_dir, "html_reports")
-
-# File paths
-config_file <- here(output_dir, "config.json")
-trials_file <- here(output_dir, "trials.csv")
-evokeds_file <- here(output_dir, "ave.csv")
-channel_locations_file <- here(output_dir, "channel_locations.csv")
-cluster_file <- here(output_dir, "clusters.csv")
 ```
 
 # Method
@@ -48,7 +36,7 @@ cluster_file <- here(output_dir, "clusters.csv")
 
 ```{r eeg_processing, eval=run_eeg_processing, include=FALSE}
 # Import the pipeline in Python
-pipeline <- import("pipeline")
+pipeline <- reticulate::import("pipeline")
 
 # Run the pipeline
 res <- pipeline$group_pipeline(

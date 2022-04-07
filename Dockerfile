@@ -6,8 +6,7 @@ USER root
 
 RUN \
     # Install the latest version of the pipeline
-    && pip3 install --no-cache-dir h5py \
-    && pip3 install --no-cache-dir --upgrade --pre \
+    pip3 install --no-cache-dir --upgrade --pre \
     --index https://test.pypi.org/simple/ hu-neuro-pipeline \
     # Download UCAP data into the project directory
     && python3 -c "from pipeline.datasets import ucap; ucap.get_paths()" \
