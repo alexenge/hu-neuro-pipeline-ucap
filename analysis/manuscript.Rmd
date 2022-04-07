@@ -27,10 +27,25 @@ library(here)
 library(dplyr)
 
 # (Re-)run steps that take a long time?
+download_data <- FALSE
 run_eeg_processing <- FALSE
+
+# Directory paths
+data_dir <- here("data")
+output_dir <- here("output")
 ```
 
 # Method
+
+```{python download_data, eval=run_eeg_processing}
+# Import Python modules
+from os import environ
+from pipeline.datasets import ucap
+
+# Download UCAP data into the project directory
+environ['PIPELINE_DATA_DIR'] = r.data_dir
+_ = ucap.get_paths()
+```
 
 ## EEG data processing
 
@@ -40,12 +55,12 @@ pipeline <- reticulate::import("pipeline")
 
 # Run the pipeline
 res <- pipeline$group_pipeline(
-    vhdr_files = here("data/raw"),
-    log_files = here("data/log"),
-    output_dir = here("output"),
-    report_dir = here("output/html_reports"),
+    vhdr_files = here(data_dir, "raw"),
+    log_files = here(data_dir, "log"),
+    output_dir = output_dir,
+    report_dir = here(output_dir, "html_reports"),
     bad_channels = NULL,
-    ocular_correction = here("data/cali"),
+    ocular_correction = here(data_dir, "cali"),
     highpass_freq = NULL,
     lowpass_freq = 40.,
     epochs_tmin = -0.2,
