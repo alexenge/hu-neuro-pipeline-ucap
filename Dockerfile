@@ -40,7 +40,7 @@ RUN \
     radian \
     session_info \
     # Install Python packages from Test PyPI
-    &6 pip3 install --no-cache-dir --upgrade --pre \
+    && pip3 install --no-cache-dir --upgrade --pre \
     --index https://test.pypi.org/simple/ hu-neuro-pipeline \
     # Install LaTeX packages
     && tlmgr update --self \
