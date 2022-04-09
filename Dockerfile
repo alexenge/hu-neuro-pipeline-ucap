@@ -52,72 +52,72 @@ RUN \
     && tlmgr update --self \
     && tlmgr install \
     amscls \
-    # amsmath \
-    # apa7 \
-    # auxhook \
-    # babel-english \
-    # beamer \
-    # bigintcalc \
-    # bitset \
-    # booktabs \
-    # caption \
-    # csquotes \
-    # endfloat \
-    # epstopdf-pkg \
-    # etexcmds \
-    # etoolbox \
-    # euenc \
-    # fancyhdr \
-    # fancyvrb \
-    # filehook \
-    # float \
-    # fontspec \
-    # footmisc \
-    # fp \
-    # framed \
-    # geometry environ \
-    # gettitlestring \
-    # grffile \
-    # grfext \
-    # hycolor \
-    # hyperref \
-    # iftex \
-    # infwarerr \
-    # intcalc \
-    # kvdefinekeys \
-    # kvoptions \
-    # kvsetkeys \
-    # latex-amsmath-dev \
-    # letltxmacro \
-    # lineno \
-    # ltxcmds \
-    # makecell \
-    # makecmds \
-    # multirow \
-    # nowidow \
-    # pdfescape \
-    # pdftexcmds \
-    # pgf \
-    # polyglossia \
-    # refcount \
-    # rerunfilecheck \
-    # scalerel \
-    # setspace \
-    # siunitx \
-    # stringenc \
-    # times \
-    # threeparttable \
-    # threeparttablex \
-    # tipa \
-    # translator \
-    # trimspaces \
-    # unicode-math \
-    # uniquecounter \
-    # was \
-    # xcolor \
-    # xpatch \
-    # xunicode \
-    # zapfding \
+    amsmath \
+    apa7 \
+    auxhook \
+    babel-english \
+    beamer \
+    bigintcalc \
+    bitset \
+    booktabs \
+    caption \
+    csquotes \
+    endfloat \
+    epstopdf-pkg \
+    etexcmds \
+    etoolbox \
+    euenc \
+    fancyhdr \
+    fancyvrb \
+    filehook \
+    float \
+    fontspec \
+    footmisc \
+    fp \
+    framed \
+    geometry environ \
+    gettitlestring \
+    grffile \
+    grfext \
+    hycolor \
+    hyperref \
+    iftex \
+    infwarerr \
+    intcalc \
+    kvdefinekeys \
+    kvoptions \
+    kvsetkeys \
+    latex-amsmath-dev \
+    letltxmacro \
+    lineno \
+    ltxcmds \
+    makecell \
+    makecmds \
+    multirow \
+    nowidow \
+    pdfescape \
+    pdftexcmds \
+    pgf \
+    polyglossia \
+    refcount \
+    rerunfilecheck \
+    scalerel \
+    setspace \
+    siunitx \
+    stringenc \
+    times \
+    threeparttable \
+    threeparttablex \
+    tipa \
+    translator \
+    trimspaces \
+    unicode-math \
+    uniquecounter \
+    was \
+    xcolor \
+    xpatch \
+    xunicode \
+    zapfding \
     # Make sure R Markdown documents get knitted from the project directory
     && echo "knitr::opts_knit\$set(root.dir = getwd())" >> "$HOME/.Rprofile" \
     # Enable plotting via `httpgd` in VS Code
