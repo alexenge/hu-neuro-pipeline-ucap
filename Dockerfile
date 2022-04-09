@@ -37,6 +37,12 @@ RUN \
     && pip3 install --no-cache-dir \
     mne==1.0.0 \
     notebook \
+    chardet \
+    joblib \
+    matplotlib \
+    pandas==1.3.5 \
+    pooch \
+    scikit-learn \
     radian \
     session_info \
     # Install Python packages from Test PyPI
