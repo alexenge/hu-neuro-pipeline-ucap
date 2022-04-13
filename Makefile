@@ -1,9 +1,9 @@
 # User-defined variables
 DOCKER_USER		:= alexenge
 IMAGE_VERSION	:= latest
-SLURM_SCRIPT	:= run_batch.sh
-SLURM_CPUS		:= 40
-SLURM_MEMORY	:= 180G
+SLURM_SCRIPT	:= run_slurm.sh
+SLURM_CPUS		:= 8
+SLURM_MEMORY	:= 32G
 SLURM_TIME		:= 24:00:00
 
 # Automatic workflow variables
