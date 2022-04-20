@@ -6,7 +6,7 @@ IMAGE_FILE=$2
 
 # Container paths
 REMOTE_HOME="/home/rstudio"
-REMOTE_DIR="$REMOTE_HOME/proj"
+REMOTE_DIR="$REMOTE_HOME/project"
 
 # Knit the document
 singularity exec \
