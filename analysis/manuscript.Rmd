@@ -21,23 +21,42 @@ output:
     latex_engine: xelatex
 ---
 
-```{r}
+```{r, setup}
 # Load R packages
 library(here)
 library(dplyr)
+library(lmerTest)
+library(readr)
+library(tibble)
+library(ggplot2)
+library(purrr)
+library(papaja)
+
+# Load the pipeline in Python
+pipeline <- reticulate::import("pipeline")
+
+# Set global chunk options
+knitr::opts_chunk$set(
+  fig.align = "center",
+  message = FALSE,
+  out.width = "100%"
+)
 
 # (Re-)run steps that take a long time?
-download_data <- FALSE
-run_eeg_processing <- FALSE
+run_download_data <- FALSE
+run_eeg_processing <- TRUE
+run_mixed_models <- TRUE
+run_oc_comparison <- TRUE
 
 # Directory paths
 data_dir <- here("data")
 output_dir <- here("output")
+report_dir <- here(output_dir, "html_reports")
 ```
 
-# Method
+# Methods
 
-```{python download_data, eval=run_eeg_processing}
+```{python, download_data, eval=run_download_data}
 # Import Python modules
 from os import environ
 from pipeline.datasets import ucap
@@ -49,19 +68,16 @@ _ = ucap.get_paths()
 
 ## EEG data processing
 
-```{r eeg_processing, eval=run_eeg_processing, include=FALSE}
-# Import the pipeline in Python
-pipeline <- reticulate::import("pipeline")
-
+```{r, eeg_processing, eval=run_eeg_processing, include=FALSE}
 # Run the pipeline
 res <- pipeline$group_pipeline(
     vhdr_files = here(data_dir, "raw"),
     log_files = here(data_dir, "log"),
     output_dir = output_dir,
-    report_dir = here(output_dir, "html_reports"),
+  report_dir = report_dir,
     bad_channels = NULL,
     ocular_correction = here(data_dir, "cali"),
-    highpass_freq = NULL,
+  highpass_freq = 0.1,
     lowpass_freq = 40.,
     epochs_tmin = -0.2,
     epochs_tmax = 0.8,
@@ -80,14 +96,13 @@ res <- pipeline$group_pipeline(
         c("blurr", "normal"),
         c("blurr/re", "blurr/li"),
         c("normal/re", "normal/li")
-    ),
-    n_jobs = 8
+  )
 )
 ```
 
-```{r descriptives, include=FALSE}
+```{r, descriptives}
 # Read config file written by the pipeline
-config <- jsonlite::fromJSON(config_file)
+config <- jsonlite::fromJSON(here(output_dir, "config.json"))
 
 # # Check numbers of interpolated channels per participant
 # bad_channels <- lengths(config[["auto_bad_channels"]])
@@ -103,6 +118,122 @@ rejected_epochs_perc <- rejected_epochs / total_epochs
 summary(rejected_epochs_perc)
 ```
 
+## Statistical analysis
+
+```{r, mixed_models, eval=run_mixed_models}
+# Read processed single trial data
+read_csv(here(output_dir, "trials.csv")) %>%
+  mutate(
+    # Code correct vs. incorrect/missing responses as 1 vs. 0
+    correct = if_else(ErrorCode == 255, true = 1, false = 0),
+    # Code if deviant stimulus was presented near the middle of the visual field
+    near_mid = if_else(DeviantPosNR %in% c(1, 6, 7, 12), true = 1, false = 0),
+    # Convert discrete variables to factors
+    certainty = factor(n_b, levels = c("normal", "blurr")),
+    position = factor(DeviantPosRL, levels = c("re", "li")),
+    participant_id = factor(participant_id),
+    item_id = factor(Objektpaar),
+  ) -> trials
+
+# Contrast coding
+contrasts(trials$certainty) <- contrasts(trials$position) <- c(0.5, -0.5)
+
+# Exclude incorrect and near middle trials from modeling
+trials_mod <- filter(trials, correct & !near_mid)
+
+# We're going to use the "bobyqa" optimizer for model optimization with lme4
+# because this used to be the default when Froemer et al. (2018) was published
+control <- lmerControl(optimizer = "bobyqa")
+
+# Fit linear mixed model for N2
+# Additional slopes omitted so we can compare with Froemer et al. (2018)
+mod_n2 <- lmer(
+  N2 ~ certainty * position +
+    (certainty + position | participant_id) +
+    (certainty | item_id),
+  data = trials_mod,
+  control = control
+)
+
+# Fit linear mixed model for P3b
+# Additional slopes omitted so we can compare with Froemer et al. (2018)
+mod_p3b <- lmer(
+  P3b ~ certainty +
+    (certainty * position | participant_id) +
+    (certainty | item_id),
+  data = trials_mod,
+  control = control
+)
+
+# Save fitted models
+save(trials, mod_n2, mod_p3b, file = here(output_dir, "models.RData"))
+```
+
+# Results
+
+```{r, tab1}
+# Load fitted models
+load(here(output_dir, "models.RData"))
+
+# Print model summaries
+summary(mod_n2)
+summary(mod_p3b)
+
+# Show table for N2
+tab_n2 <- apa_print(mod_n2)$table
+apa_table(tab_n2, caption = "Linear-mixed effects model for N2 amplitudes")
+```
+
+```{r, fig1, fig.height=3.5, fig.width=3.5, message=FALSE, warning=FALSE}
+# Plot single trial N2 mean amplitudes by condition
+trials %>%
+  filter(!is.na(N2)) %>%
+  ggplot(aes(x = position, y = N2, color = certainty, fill = certainty)) +
+  geom_violin(position = position_dodge(0.75), alpha = 0.3) +
+  stat_summary(
+    aes(group = certainty),
+    geom = "line",
+    fun.data = mean_se,
+    size = 1.,
+    position = position_dodge(0.75)
+  ) +
+  coord_cartesian(ylim = c(-20, 10)) +
+  theme_classic(base_size = 10)
+```
+
+```{r, fig2, fig.width=7.5, fig.height=3.5}
+# Load by-participant averages
+evokeds <- read_csv(here(output_dir, "ave.csv"))
+
+# Evokeds by participant/condition (core repeated for creating the plot)
+evokeds %>%
+  filter(average_by == "n_b/DeviantPosRL") %>%
+  Rmisc::summarySEwithin(
+    measurevar = "N2",
+    withinvars = c("time", "n_b", "DeviantPosRL"),
+    idvar = "participant_id"
+  ) %>%
+  mutate(time = as.numeric(levels(time))[time]) %>%
+  ggplot(aes(
+    x = time,
+    y = N2,
+    ymin = N2 - se,
+    ymax = N2 + se,
+    color = n_b,
+    fill = n_b
+  )) +
+  facet_wrap(~DeviantPosRL) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  geom_vline(xintercept = 0, linetype = "dashed") +
+  geom_line(size = 1) +
+  geom_ribbon(color = NA, alpha = 0.2) +
+  scale_colour_brewer(
+    palette = "Set1",
+    aesthetics = c("colour", "fill")
+  ) +
+  coord_cartesian(xlim = c(-0.2, 0.8)) +
+  theme_classic(base_size = 20)
+```
 # Appendix B: R package versions
 
 ```{r, r_session_info}
