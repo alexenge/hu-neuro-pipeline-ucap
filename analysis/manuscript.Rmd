@@ -238,7 +238,7 @@ evokeds %>%
   theme_classic(base_size = 20)
 ```
 
-```{r, fig3, fig.width=7.5, fig.height=2.5}
+```{r, topoplots, fig.width=7.5, fig.height=2.0}
 # Load by-participant averages (evokeds)
 evokeds <- read_csv(here(output_dir, "ave.csv"))
 
@@ -257,10 +257,12 @@ evokeds_diff[channels] <- evokeds_blurr[channels] - evokeds_normal[channels]
 # Install eegUtils from GitHub for the `topoplot()` function
 # remotes::install_github("craddm/eegUtils")
 
-# Create topoplot for a single time window (N2 component) 
+# Option 1: Create a topoplot for a single time window (here: N2 time window)
+tmin <- 0.25
+tmax <- 0.35
 evokeds_diff %>%
   # Select time window
-  filter(time >= 0.25 & time < 0.35) %>%
+  filter(time >= tmin & time < tmax) %>%
   # Convert channels (electrodes) to long format
   # In pipeline lingo, we call them channels (see the COBIDAS guidelines), but
   # here we call the column `electrode` because that's what `topoplot()` expects
@@ -274,11 +276,10 @@ evokeds_diff %>%
   # See ?eegUtils::topoplot for more options
   eegUtils::topoplot(limits = c(-1, 1))
 
-# Repeat for multiple time windows
-# Here: 0 ms to 800 ms in windows of 200 ms
-tmins <- seq(0.0, 0.6, by = 0.1)
+# Option 2: Repeat for multiple time windows (here: 100 ms bins from 0--800 ms)
+tmins <- seq(0.0, 0.7, by = 0.1)
 map(tmins, function(tmin) {
-  tmax <- tmin + 0.2
+  tmax <- tmin + 0.1
   evokeds_diff %>%
     filter(time >= tmin & time < tmax) %>%
     pivot_longer(channels, names_to = "electrode", values_to = "amplitude") %>%
@@ -289,9 +290,7 @@ map(tmins, function(tmin) {
     ggtitle(paste0(tmin * 1e3, "-", tmax * 1e3, " ms")) +
     theme(legend.position = "none")
 }) -> topoplots
-
-# Combine into one plot
-cowplot::plot_grid(plotlist = topoplots, nrow = 1)
+cowplot::plot_grid(plotlist = topoplots, nrow = 1) # Combine into one plot
 ```
 
 # Appendix A: Comparison of ocular correction methods
