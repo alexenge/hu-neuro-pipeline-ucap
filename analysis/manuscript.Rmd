@@ -235,6 +235,30 @@ evokeds %>%
   coord_cartesian(xlim = c(-0.2, 0.8)) +
   theme_classic(base_size = 20)
 ```
+# Appendix A: Comparison of ocular correction methods
+
+```{r, oc_comparison, eval=run_oc_comparison}
+# Run the pipeline
+oc_methods <- list(BESA = here(data_dir, "cali"), FastICA = "auto", None = NULL)
+oc_res <- map2(oc_methods, names(oc_methods), ~ pipeline$group_pipeline(
+  vhdr_files = here(data_dir, "raw"),
+  log_files = here(data_dir, "log"),
+  output_dir = here(output_dir, paste0("oc_", .y)),
+  ocular_correction = .x,
+  triggers = c(201:208, 211:218),
+  components = list(
+    "name" = c("N2", "P3b"),
+    "tmin" = c(0.25, 0.4),
+    "tmax" = c(0.35, 0.55),
+    "roi" = list(
+      c("FC1", "FC2", "C1", "C2", "Cz"),
+      c("CP3", "CP1", "CPz", "CP2", "CP4", "P3", "Pz", "P4", "PO3", "POz", "PO4")
+    )
+  ),
+  n_jobs = 2 # Runs 2 participant in parallel; remove if you don't have much RAM
+))
+```
+
 # Appendix B: R package versions
 
 ```{r, r_session_info}
@@ -244,9 +268,9 @@ sessionInfo()
 
 # Appendix C: Python package versions
 
-```{python, py_session_info}
+```{python, py_session_info, warning=FALSE}
 # Python version and package info
-import pipeline
 import session_info
+import pipeline
 session_info.show(dependencies=True)
 ```
