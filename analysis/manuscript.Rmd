@@ -26,6 +26,7 @@ output:
 # Load R packages
 library(here)
 library(dplyr)
+library(tidyr)
 library(lmerTest)
 library(readr)
 library(tibble)
@@ -72,31 +73,32 @@ _ = ucap.get_paths()
 ```{r, eeg_processing, eval=run_eeg_processing, include=FALSE}
 # Run the pipeline
 res <- pipeline$group_pipeline(
-    vhdr_files = here(data_dir, "raw"),
-    log_files = here(data_dir, "log"),
-    output_dir = output_dir,
-  report_dir = report_dir,
-    bad_channels = NULL,
-    ocular_correction = here(data_dir, "cali"),
+  vhdr_files = here(data_dir, "raw"),
+  log_files = here(data_dir, "log"),
+  output_dir = output_dir,
+  report_dir = NULL,
+  bad_channels = NULL,
+  ocular_correction = here(data_dir, "cali"),
   highpass_freq = 0.1,
-    lowpass_freq = 40.,
-    epochs_tmin = -0.2,
-    epochs_tmax = 0.8,
-    triggers = c(201:208, 211:218),
-    components = list(
-        "name" = c("N2", "P3b"),
-        "tmin" = c(0.25, 0.4),
-        "tmax" = c(0.35, 0.55),
-        "roi" = list(
-            c("FC1", "FC2", "C1", "C2", "Cz"),
-            c("CP3", "CP1", "CPz", "CP2", "CP4", "P3", "Pz", "P4", "PO3", "POz", "PO4")
-        )
-    ),
-    average_by = c("n_b", "DeviantPosRL", "n_b/DeviantPosRL"),
-    perm_contrasts = list(
-        c("blurr", "normal"),
-        c("blurr/re", "blurr/li"),
-        c("normal/re", "normal/li")
+  lowpass_freq = 40.,
+  epochs_tmin = -0.2,
+  epochs_tmax = 0.8,
+  triggers = c(201:208, 211:218),
+  components = list(
+    "name" = c("N2", "P3b"),
+    "tmin" = c(0.25, 0.4),
+    "tmax" = c(0.35, 0.55),
+    "roi" = list(
+      c("FC1", "FC2", "C1", "C2", "Cz"),
+      c("CP3", "CP1", "CPz", "CP2", "CP4", "P3", "Pz", "P4", "PO3", "POz", "PO4")
+    )
+  ),
+  average_by = c("n_b", "DeviantPosRL", "n_b/DeviantPosRL"),
+  perm_contrasts = list(
+    c("blurr", "normal"),
+    c("re", "li"),
+    c("blurr/re", "blurr/li"),
+    c("normal/re", "normal/li")
   )
 )
 ```
@@ -206,7 +208,7 @@ trials %>%
 # Load by-participant averages
 evokeds <- read_csv(here(output_dir, "ave.csv"))
 
-# Evokeds by participant/condition (core repeated for creating the plot)
+# Time courses of evokeds by participant/condition
 evokeds %>%
   filter(average_by == "n_b/DeviantPosRL") %>%
   Rmisc::summarySEwithin(
@@ -235,6 +237,63 @@ evokeds %>%
   coord_cartesian(xlim = c(-0.2, 0.8)) +
   theme_classic(base_size = 20)
 ```
+
+```{r, fig3, fig.width=7.5, fig.height=2.5}
+# Load by-participant averages (evokeds)
+evokeds <- read_csv(here(output_dir, "ave.csv"))
+
+# Load channel locations
+channel_locations <- read_csv(here(output_dir, "channel_locations.csv"))
+channels <- channel_locations$channel
+
+# Extract evokeds for the two conditions of interest (here: main effect of n_b)
+evokeds_blurr <- filter(evokeds, average_by == "n_b" & n_b == "blurr")
+evokeds_normal <- filter(evokeds, average_by == "n_b" & n_b == "normal")
+
+# Compute difference waves between conditions
+evokeds_diff <- evokeds_blurr # Just a copy for now; magic is in the next line
+evokeds_diff[channels] <- evokeds_blurr[channels] - evokeds_normal[channels]
+
+# Install eegUtils from GitHub for the `topoplot()` function
+# remotes::install_github("craddm/eegUtils")
+
+# Create topoplot for a single time window (N2 component) 
+evokeds_diff %>%
+  # Select time window
+  filter(time >= 0.25 & time < 0.35) %>%
+  # Convert channels (electrodes) to long format
+  # In pipeline lingo, we call them channels (see the COBIDAS guidelines), but
+  # here we call the column `electrode` because that's what `topoplot()` expects
+  pivot_longer(channels, names_to = "electrode", values_to = "amplitude") %>%
+  # Average over participants and time samples
+  group_by(electrode) %>%
+  summarise(amplitude = mean(amplitude)) %>%
+  # Add channel locations
+  left_join(channel_locations, by = c("electrode" = "channel")) %>%
+  # Fire! This creates a ggplot, so you can add titles, labels, colors as usual
+  # See ?eegUtils::topoplot for more options
+  eegUtils::topoplot(limits = c(-1, 1))
+
+# Repeat for multiple time windows
+# Here: 0 ms to 800 ms in windows of 200 ms
+tmins <- seq(0.0, 0.6, by = 0.1)
+map(tmins, function(tmin) {
+  tmax <- tmin + 0.2
+  evokeds_diff %>%
+    filter(time >= tmin & time < tmax) %>%
+    pivot_longer(channels, names_to = "electrode", values_to = "amplitude") %>%
+    group_by(electrode) %>%
+    summarise(amplitude = mean(amplitude)) %>%
+    left_join(channel_locations, by = c("electrode" = "channel")) %>%
+    eegUtils::topoplot(limits = c(-1, 1)) +
+    ggtitle(paste0(tmin * 1e3, "-", tmax * 1e3, " ms")) +
+    theme(legend.position = "none")
+}) -> topoplots
+
+# Combine into one plot
+cowplot::plot_grid(plotlist = topoplots, nrow = 1)
+```
+
 # Appendix A: Comparison of ocular correction methods
 
 ```{r, oc_comparison, eval=run_oc_comparison}
